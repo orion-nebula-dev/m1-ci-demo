@@ -27,12 +27,14 @@ if [[ ! -x "$runner_root/run.sh" ]]; then
     | tar -xz -C "$runner_root"
 fi
 
-if ! command -v gh >/dev/null; then
-  printf 'GitHub CLI (gh) is required to request a registration token\n' >&2
+if [[ -n "${RUNNER_TOKEN:-}" ]]; then
+  token="$RUNNER_TOKEN"
+elif command -v gh >/dev/null; then
+  token="$(gh api --method POST "repos/$repo_slug/actions/runners/registration-token" --jq .token)"
+else
+  printf 'Set RUNNER_TOKEN or authenticate GitHub CLI (gh) first\n' >&2
   exit 1
 fi
-
-token="$(gh api --method POST "repos/$repo_slug/actions/runners/registration-token" --jq .token)"
 
 if [[ -f "$runner_root/.runner" ]]; then
   "$runner_root/config.sh" remove --token "$token"

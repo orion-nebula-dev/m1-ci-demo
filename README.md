@@ -41,6 +41,12 @@ On the M1, after authenticating `gh` and enabling Actions for the repository:
 scripts/ci/runner-install.sh OWNER/REPO m1-ci
 ```
 
+Alternatively, pass a short-lived registration token without installing `gh`:
+
+```bash
+RUNNER_TOKEN=... scripts/ci/runner-install.sh OWNER/REPO m1-ci
+```
+
 The installer requests a short-lived registration token, configures the
 `self-hosted,macOS,ARM64,m1-ci` labels, and installs a launchd service.
 

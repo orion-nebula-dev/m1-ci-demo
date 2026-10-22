@@ -35,8 +35,11 @@ jobs:
           "$CODEX_BIN" exec --ephemeral --skip-git-repo-check \
             -s danger-full-access \
             -C "$GITHUB_WORKSPACE" \
-            -o agent-last-message.txt \
-            "Start src/server.js on 127.0.0.1:${E2E_PORT}, call /health, assert HTTP 200 and status=ok, then stop the server. Do not edit tracked files. Run scripts/e2e.sh with PORT=${E2E_PORT} and report the exact result."
+            --output-schema .github/ci/agent-result.schema.json \
+            -o agent-result.json \
+            "Start src/server.js on 127.0.0.1:${E2E_PORT}, call /health, assert HTTP 200 and status=ok, then stop the server. Do not edit tracked files. Run scripts/e2e.sh with PORT=${E2E_PORT}. Return the structured acceptance result required by the schema; set status=pass only if every check passes."
+          jq -e '.status == "pass" and all(.checks[]; .result == "pass")' agent-result.json
+          git diff --exit-code HEAD --
 
       - name: Upload agent report
         if: always()
@@ -44,7 +47,7 @@ jobs:
         with:
           name: agent-e2e-${{ github.run_id }}
           path: |
-            agent-last-message.txt
+            agent-result.json
             e2e-server.log
             e2e-response.json
           if-no-files-found: warn

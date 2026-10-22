@@ -67,8 +67,14 @@ if [[ "$AGENT_E2E" == "1" ]]; then
     --skip-git-repo-check \
     -s danger-full-access \
     -C "$ROOT" \
-    -o "$ARTIFACT_DIR/agent-last-message.txt" \
-    "Act as the CI acceptance agent for this trusted commit. Inspect the repository, run its documented end-to-end checks, and independently probe the resulting service or artifact. Do not edit tracked files. Report each command and whether acceptance passed."
+    --output-schema "$ROOT/.github/ci/agent-result.schema.json" \
+    -o "$ARTIFACT_DIR/agent-result.json" \
+    "Act as the CI acceptance agent for this trusted commit. Inspect the repository, run its documented end-to-end checks, and independently probe the resulting service or artifact. Do not edit tracked files. Return the structured acceptance result required by the schema; set status=pass only if every check passes."
+
+  if ! jq -e '.status == "pass" and all(.checks[]; .result == "pass")' "$ARTIFACT_DIR/agent-result.json"; then
+    printf 'FAIL: agent acceptance result is not pass\n' >&2
+    exit 1
+  fi
 
   if ! git -C "$ROOT" diff --exit-code HEAD --; then
     printf 'FAIL: agent changed tracked files\n' >&2
