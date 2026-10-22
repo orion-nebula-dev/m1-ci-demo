@@ -1,0 +1,51 @@
+name: Codex Agent E2E
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: agent-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  agent-e2e:
+    name: Codex verifies M1 service
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, macOS, ARM64, m1-ci]
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: /bin/bash -e {0}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Run isolated Codex acceptance agent
+        env:
+          CODEX_BIN: /Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex
+          E2E_PORT: "3101"
+        run: |
+          test -x "$CODEX_BIN"
+          "$CODEX_BIN" exec --ephemeral --skip-git-repo-check \
+            -s danger-full-access \
+            -C "$GITHUB_WORKSPACE" \
+            -o agent-last-message.txt \
+            "Start src/server.js on 127.0.0.1:${E2E_PORT}, call /health, assert HTTP 200 and status=ok, then stop the server. Do not edit tracked files. Run scripts/e2e.sh with PORT=${E2E_PORT} and report the exact result."
+
+      - name: Upload agent report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: agent-e2e-${{ github.run_id }}
+          path: |
+            agent-last-message.txt
+            e2e-server.log
+            e2e-response.json
+          if-no-files-found: warn
+          retention-days: 7
