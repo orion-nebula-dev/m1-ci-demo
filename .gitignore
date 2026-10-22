@@ -1,0 +1,5 @@
+ci-artifacts/
+e2e-response.json
+e2e-server.log
+agent-last-message.txt
+
