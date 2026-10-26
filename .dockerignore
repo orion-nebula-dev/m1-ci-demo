@@ -1,0 +1,6 @@
+**
+!ci-artifacts
+!ci-artifacts/dist
+!ci-artifacts/dist/service
+!ci-fixtures
+!ci-fixtures/Dockerfile

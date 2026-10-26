@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "default_profile": "node",
+  "profiles": {
+    "node": {
+      "stages": [
+        {"name": "CI engine regression", "run": "/usr/bin/python3 -m unittest discover -s \"$CI_PLATFORM_ROOT/source/tests\" -v"},
+        {"name": "Install", "run": "npm ci --no-audit --no-fund"},
+        {"name": "Lint", "run": "test ! -f ci-fixtures/force-node-failure && npm run lint"},
+        {"name": "Unit tests", "run": "mkdir -p ci-artifacts/junit && node --test --test-reporter=junit > ci-artifacts/junit/node-tests.xml"},
+        {"name": "Package", "run": "mkdir -p ci-artifacts/dist && npm pack --pack-destination ci-artifacts/dist"},
+        {"name": "HTTP end-to-end", "run": "PORT=31310 LOG_FILE=ci-artifacts/http-server.log RESPONSE_FILE=ci-artifacts/http-response.json npm run e2e"}
+      ]
+    },
+    "go": {
+      "stages": [
+        {"name": "Go dependencies", "run": "cd ci-fixtures/go && go mod download"},
+        {"name": "Go format and vet", "run": "cd ci-fixtures/go && test -z \"$(gofmt -l *.go)\" && go vet ./..."},
+        {"name": "Go unit and race", "run": "cd ci-fixtures/go && go test -race -count=1 -json ./... | tee ../../ci-artifacts/go-tests.jsonl", "timeout_seconds": 1200},
+        {"name": "macOS arm64 executable", "run": "mkdir -p ci-artifacts/dist && cd ci-fixtures/go && go build -trimpath -o ../../ci-artifacts/dist/fixture-darwin-arm64 ."},
+        {"name": "Cross-platform CLI builds", "run": "cd ci-fixtures/go; for target in linux/amd64 linux/arm64 windows/amd64; do target_os=${target%/*}; target_arch=${target#*/}; CGO_ENABLED=0 GOOS=$target_os GOARCH=$target_arch go build -trimpath -o ../../ci-artifacts/dist/fixture-$target_os-$target_arch .; done", "timeout_seconds": 1200},
+        {"name": "Run built macOS executable", "run": "ci-artifacts/dist/fixture-darwin-arm64 -self-test | tee ci-artifacts/native-executable-result.json"}
+      ]
+    },
+    "docker": {
+      "stages": [
+        {"name": "Build Linux arm64 service", "run": "mkdir -p ci-artifacts/dist && cd ci-fixtures/go && CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -o ../../ci-artifacts/dist/service ."},
+        {"name": "Image build, runtime smoke, export", "run": "/usr/bin/python3 ci-fixtures/docker_smoke.py", "timeout_seconds": 1200}
+      ]
+    }
+  }
+}
